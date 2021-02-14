@@ -24,31 +24,38 @@ find_package(rclpy REQUIRED)
 find_package(ros_core REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
+add_subdirectory (../lib lib)
+
+include_directories(
+  include
+  ${ros_core_INCLUDE_DIR}
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
-"srv/PixelToPoint.srv"
+  "srv/PixelToPoint.srv"
 )
 
 add_executable(point_transformation_node src/point_transformation_node.cpp)
-target_include_directories(point_transformation_node PUBLIC
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-$<INSTALL_INTERFACE:include>)
-ament_target_dependencies(
-  point_transformation_node
+target_include_directories(point_transformation_node 
+  PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  PUBLIC ../lib/include
+)
+
+ament_target_dependencies(point_transformation_node
   "rclcpp"
   "ros_core"
-  )
-  
-install(TARGETS point_transformation_node
-  DESTINATION lib/${PROJECT_NAME})
-
-add_subdirectory (../lib point_transformation_lib)
+)
   
 target_link_libraries(point_transformation_node
   point_transformation_lib
+  ros_core::ros_core_lib
 )
   
-# install(TARGETS point_transformation_lib
-#   DESTINATION lib/point_transformation_lib)
+install(TARGETS 
+  point_transformation_node
+  DESTINATION lib/${PROJECT_NAME})
 
 # Install launch files.
 install(DIRECTORY
