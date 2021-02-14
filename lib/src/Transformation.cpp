@@ -19,57 +19,61 @@ void Transformation::init(std::vector<double> opening_angle, int width_pixel, in
                   tan(opening_angle[1] * M_PI / 360) / half_size_pixel_[1]};
 }
 
-void Transformation::init(float focal_length, float stereo_baseline)
+// void Transformation::init(float focal_length, float stereo_baseline)
+// {
+//     focal_length_ = focal_length;
+//     stereo_baseline_ = stereo_baseline;
+// }
+
+std::vector<double> Transformation::pixel_to_point(std::vector<int> pixel, double depth) const
 {
-    focal_length_ = focal_length;
-    stereo_baseline_ = stereo_baseline;
+    std::vector<int> positions{pixel[0], pixel[1]};
+
+    std::vector<double> point;
+    point.push_back(pixel_to_point(positions, depth, 0));
+    point.push_back(pixel_to_point(positions, depth, 1));
+    point.push_back(depth);
+
+    return point;
 }
 
-cv::Point3d Transformation::pixelToPoint(cv::Point2i point, double depth) const
+std::vector<int> Transformation::point_to_pixel(std::vector<double> point) const
 {
-    std::vector<int> positions{point.x, point.y};
+    std::vector<int> pixel;
+    pixel.push_back(point_to_pixel(point, 0));
+    pixel.push_back(point_to_pixel(point, 1));
 
-    return {pixelToPoint(positions, depth, 0),
-            pixelToPoint(positions, depth, 1),
-            depth};
+    return pixel;
 }
 
-cv::Point2i Transformation::pointToPixel(cv::Point3d point) const
-{
-    std::vector<double> positions{point.x, point.y, point.z};
-
-    return {pointToPixel(positions, 0),
-            pointToPixel(positions, 1)};
-}
-
-double Transformation::pixelToPoint(std::vector<int> &position, double depth, int index) const
+double Transformation::pixel_to_point(std::vector<int> &position, double depth, int index) const
 {
     return (position[index] - half_size_pixel_[index]) * depth * size_real_[index];
 }
 
-int Transformation::pointToPixel(std::vector<double> &position, int index) const
+int Transformation::point_to_pixel(std::vector<double> &position, int index) const
 {
     return position[index] / position[2] / size_real_[index] + half_size_pixel_[index];
 }
 
 // https://doc.rc-visard.com/latest/en/stereo_matching.html
 
-cv::Point3d Transformation::pixelToPoint_D(cv::Point2i point, float disparity) const
-{
-    float factor = stereo_baseline_ / disparity;
+// cv::Point3d Transformation::pixelToPoint_D(cv::Point2i point, float disparity) const
+// {
+//     float factor = stereo_baseline_ / disparity;
 
-    return {point.x * factor,
-            point.y * factor,
-            focal_length_ * factor};
-}
+//     return {point.x * factor,
+//             point.y * factor,
+//             focal_length_ * factor};
+// }
 
-cv::Point2i Transformation::pointToPixel_D(cv::Point3d point) const
-{
-    float factor = focal_length_ / point.z;
+// cv::Point2i Transformation::pointToPixel_D(cv::Point3d point) const
+// {
+//     float factor = focal_length_ / point.z;
 
-    return {(int)std::round(point.x * factor),
-            (int)std::round(point.y * factor)};
-}
+//     return {(int)std::round(point.x * factor),
+//             (int)std::round(point.y * factor)};
+// }
 
 // cv::Point3d Transformation::transform(Pose pose, cv::Point3d point) const
 // {

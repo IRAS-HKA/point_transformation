@@ -1,1 +1,4 @@
+geometry_msgs/Point pixel
+sensor_msgs/Image depth_image
 ---
+geometry_msgs/Point point

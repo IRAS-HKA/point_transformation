@@ -2,9 +2,9 @@
 
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import Image
 
-from sensor_msgs.msg import Image, RegionOfInterest
-from ros_core.srv import DetectObjects
+from point_transformation.srv import PixelToPoint
 
 
 class Client():
@@ -13,31 +13,32 @@ class Client():
 
         self.node = node
 
-        self.client = self.node.create_client(DetectObjects, 'detection_node/detect_objects')
+        self.client = self.node.create_client(PixelToPoint, 'point_transformation_node/pixel_to_point')
 
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.node.get_logger().info('service not available, waiting again...')
 
-        self.request = DetectObjects.Request()
+        self.request = PixelToPoint.Request()
 
-    def detect_objects_async(self, image: Image, roi: RegionOfInterest):
+    def pixel_to_point_async(self, pixel, depth_image: Image):
 
-        self.request.image = image
-        self.request.roi = roi
+        self.request.pixel.x = float(pixel[0])
+        self.request.pixel.y = float(pixel[1])
+        self.request.depth_image = depth_image
 
         return self.client.call_async(self.request)
 
-    def detect_objects(self, image: Image, roi: RegionOfInterest):
+    def pixel_to_point(self, pixel, depth_image: Image):
 
-        future = self.detect_objects_async(image, roi)
+        future = self.pixel_to_point_async(pixel, depth_image)
 
         rclpy.spin_until_future_complete(self.node, future)
 
         response = future.result()
 
-        self.node.get_logger().info(str(response.detections.detections))
+        self.node.get_logger().info(str(response.point))
 
-        return response.detections.detections, response.result_image
+        return response.point
 
 
 def main(args=None):
@@ -51,15 +52,12 @@ def main(args=None):
     client = Client(node)
 
     # Image collected via camera driver, e.g. rc_visard_ros
-    image = Image(height=640, width=480, encoding="rgb8")
+    depth_image = Image(height=640, width=480, encoding="rgb8")
 
-    # (Optional) Only search objects in this region of interest
-    roi = RegionOfInterest(x_offset=100,
-                           y_offset=100,
-                           height=100,
-                           width=100)
+    # Pixel to be transformed to 3D point
+    pixel = [100,100]
 
-    detections, result_image = client.detect_objects(image, roi)
+    point = client.pixel_to_point(pixel, depth_image)
 
     #####################
 

@@ -23,6 +23,8 @@ find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(ros_core REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 add_subdirectory (../lib lib)
 
@@ -33,6 +35,7 @@ include_directories(
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PixelToPoint.srv"
+  DEPENDENCIES sensor_msgs geometry_msgs
 )
 
 add_executable(point_transformation_node src/point_transformation_node.cpp)
@@ -47,6 +50,9 @@ ament_target_dependencies(point_transformation_node
   "rclcpp"
   "ros_core"
 )
+
+rosidl_target_interfaces(point_transformation_node
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
   
 target_link_libraries(point_transformation_node
   point_transformation_lib
