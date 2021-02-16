@@ -13,10 +13,11 @@ class Client():
 
         self.node = node
 
-        self.client = self.node.create_client(PixelToPoint, 'point_transformation_node/pixel_to_point')
+        self.client = self.node.create_client(
+            PixelToPoint, 'point_transformation_node/pixel_to_point')
 
         while not self.client.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().info('service not available, waiting again...')
+            self.node.get_logger().info('PixelToPoint service not available, waiting again...')
 
         self.request = PixelToPoint.Request()
 
@@ -55,7 +56,7 @@ def main(args=None):
     depth_image = Image(height=640, width=480, encoding="rgb8")
 
     # Pixel to be transformed to 3D point
-    pixel = [100,100]
+    pixel = [100, 100]
 
     point = client.pixel_to_point(pixel, depth_image)
 

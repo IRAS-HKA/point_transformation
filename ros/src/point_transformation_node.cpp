@@ -7,7 +7,10 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
             Transformation t;
 
             // opening angles from roboception: horizontal 61°, vertical 48°
-            t.init(std::vector<double>{61, 48}, request->depth_image.width, request->depth_image.height);
+            // different focal_factor for changed lenses
+            float focal_factor = 6. / 8.;
+
+            t.init(std::vector<double>{61. * focal_factor, 48. * focal_factor}, request->depth_image.width, request->depth_image.height);
 
             // t.depth_from_pixel();
             // fixed depth of 1m
