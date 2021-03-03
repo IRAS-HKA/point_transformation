@@ -1,4 +1,6 @@
-geometry_msgs/Point pixel
-sensor_msgs/Image depth_image
+geometry_msgs/Point pixel           # pixel in rgb image
+uint32 height 0                     # rgb image height, default if unassigned = 0
+uint32 width 0                      # rgb image width, default if unassigned = 0
+sensor_msgs/Image depth_image       # corresponding depth image
 ---
 geometry_msgs/Point point

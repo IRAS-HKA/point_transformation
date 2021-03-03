@@ -21,17 +21,21 @@ class Client():
 
         self.request = PixelToPoint.Request()
 
-    def pixel_to_point_async(self, pixel, depth_image: Image):
+    def pixel_to_point_async(self, pixel, height=0, width=0, depth_image:Image=Image()):
 
         self.request.pixel.x = float(pixel[0])
         self.request.pixel.y = float(pixel[1])
+        self.request.height = int(height)
+        self.request.width = int(width)
         self.request.depth_image = depth_image
+
+        print(str(depth_image))
 
         return self.client.call_async(self.request)
 
-    def pixel_to_point(self, pixel, depth_image: Image):
+    def pixel_to_point(self, pixel, height=0, width=0, depth_image:Image=Image()):
 
-        future = self.pixel_to_point_async(pixel, depth_image)
+        future = self.pixel_to_point_async(pixel, height, width, depth_image)
 
         rclpy.spin_until_future_complete(self.node, future)
 
@@ -57,8 +61,9 @@ def main(args=None):
 
     # Pixel to be transformed to 3D point
     pixel = [100, 100]
+    rgb_image_size = [1200, 900]
 
-    point = client.pixel_to_point(pixel, depth_image)
+    point = client.pixel_to_point(pixel, rgb_image_size[0], rgb_image_size[1], depth_image)
 
     #####################
 

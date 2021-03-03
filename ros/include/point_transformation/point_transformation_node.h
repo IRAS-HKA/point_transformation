@@ -26,4 +26,10 @@ public:
 
 private:
     rclcpp::Service<PixelToPoint>::SharedPtr service_;
+    double opening_angle_horizontal_;
+    double opening_angle_vertical_;
+    double focal_factor_;
+    int width_;
+    int height_;
+    double default_depth_;
 };
