@@ -1,0 +1,8 @@
+point_transformation_node:
+  ros__parameters:
+    opening_angle_horizontal: 61.0  # Horizontal opening angle of the used Camera (Roboception) in degrees
+    opening_angle_vertical: 48.0    # Vertical opening angle in degrees
+    focal_factor: 0.75              # Focal factor of the camera lense
+    width: 1920                     # Default width if no image width is given to the service
+    height: 1080                    # Default height
+    default_depth: 1.0              # Default depth in m if no depth image is given
