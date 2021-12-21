@@ -12,7 +12,7 @@
 #include <cstdio>
 
 #include <rclcpp/rclcpp.hpp>
-// #include <ros_core/default.h>
+#include <cv_bridge/cv_bridge.h>
 
 #include <point_transformation/srv/pixel_to_point.hpp>
 #include <point_transformation_lib/Transformation.h>
@@ -32,4 +32,5 @@ private:
     int width_;
     int height_;
     double default_depth_;
+    double get_depth_from_image_(const std::shared_ptr<PixelToPoint::Request> request);
 };
