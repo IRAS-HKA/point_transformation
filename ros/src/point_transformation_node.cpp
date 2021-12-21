@@ -17,7 +17,8 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
     default_depth_ = this->get_parameter("default_depth").as_double();
 
     service_ = this->create_service<PixelToPoint>(
-        "point_transformation_node/pixel_to_point", [&](const std::shared_ptr<PixelToPoint::Request> request, std::shared_ptr<PixelToPoint::Response> response) {
+        "point_transformation_node/pixel_to_point", [&](const std::shared_ptr<PixelToPoint::Request> request, std::shared_ptr<PixelToPoint::Response> response)
+        {
             Transformation t;
 
             // If width or heigth has default value of 0, then use the value from the parameter file
@@ -34,8 +35,8 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
             // If no depth image given, use default from param file
             if (!request->depth_image.data.empty())
             {
-                //depth = t.depth_from_pixel();
-                depth = default_depth_;
+
+                depth = get_depth_from_image_(request);
             }
 
             std::vector<double> point = t.pixel_to_point(std::vector<int>{(int)request->pixel.x, (int)request->pixel.y}, depth);
@@ -48,6 +49,30 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
         });
 
     RCLCPP_INFO(get_logger(), "Node started");
+}
+
+double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<PixelToPoint::Request> request)
+{
+    double x_ratio = (double)request->depth_image.width / request->width;
+    double y_ratio = (double)request->depth_image.height / request->height;
+
+    int depth_pixel_x = std::round(request->pixel.x * x_ratio);
+    int depth_pixel_y = std::round(request->pixel.y * y_ratio);
+
+    cv_bridge::CvImagePtr cv_ptr;
+
+    cv_ptr = cv_bridge::toCvCopy(request->depth_image, request->depth_image.encoding);
+
+    double depth = cv_ptr->image.at<double>(depth_pixel_x, depth_pixel_y);
+
+    RCLCPP_INFO(get_logger(), std::to_string(depth_pixel_x));
+    RCLCPP_INFO(get_logger(), std::to_string(cv_ptr->image.cols));
+    RCLCPP_INFO(get_logger(), std::to_string(depth));
+
+    // Warum ist depth value z=2.247117487993712e+307?
+    // Nochmal ausprobieren in python tiefenwerte auszulesen
+
+    return depth;
 }
 
 int main(int argc, char *argv[])
