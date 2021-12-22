@@ -73,6 +73,7 @@ ament_python_install_package(/${PROJECT_NAME})
 
 install(PROGRAMS
   ${PROJECT_NAME}/client.py
+  ${PROJECT_NAME}/depth_image_sub.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
