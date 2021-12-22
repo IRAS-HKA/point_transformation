@@ -8,6 +8,7 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
     this->declare_parameter("width");
     this->declare_parameter("height");
     this->declare_parameter("default_depth");
+    this->declare_parameter("max_pixel_range_for_depth_matching");
 
     opening_angle_horizontal_ = this->get_parameter("opening_angle_horizontal").as_double();
     opening_angle_vertical_ = this->get_parameter("opening_angle_vertical").as_double();
@@ -15,6 +16,7 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
     width_ = this->get_parameter("width").as_int();
     height_ = this->get_parameter("height").as_int();
     default_depth_ = this->get_parameter("default_depth").as_double();
+    max_pixel_range_for_depth_matching_ = this->get_parameter("max_pixel_range_for_depth_matching").as_int();
 
     service_ = this->create_service<PixelToPoint>(
         "point_transformation_node/pixel_to_point", [&](const std::shared_ptr<PixelToPoint::Request> request, std::shared_ptr<PixelToPoint::Response> response)
@@ -53,26 +55,103 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
 
 double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<PixelToPoint::Request> request)
 {
+    // x from openpose is from top left to the right = cv/column cv(row, col)
+    // y from openpose is from top left downwards = cv/row cv(row, col)
+
+    // MAXIMALE VERWIRRUNG:
+    // topleft corner (0,0)
+    // bottom rigth corner (479,319)
+    // zusammengehördende Pixelreihen 1x640 werden halbiert und stehen untereinander 2x320
+
     double x_ratio = (double)request->depth_image.width / request->width;
     double y_ratio = (double)request->depth_image.height / request->height;
 
-    int depth_pixel_x = std::round(request->pixel.x * x_ratio);
-    int depth_pixel_y = std::round(request->pixel.y * y_ratio);
+    int depth_pixel_row = std::round(request->pixel.y * y_ratio);
+    int depth_pixel_col = std::round(request->pixel.x * x_ratio) / 2;
+
+    double depth = 0.0;
 
     cv_bridge::CvImagePtr cv_ptr;
 
     cv_ptr = cv_bridge::toCvCopy(request->depth_image, request->depth_image.encoding);
 
-    double depth = cv_ptr->image.at<double>(depth_pixel_x, depth_pixel_y);
+    cv::patchNaNs(cv_ptr->image, 0.0);
 
-    RCLCPP_INFO(get_logger(), std::to_string(depth_pixel_x));
-    RCLCPP_INFO(get_logger(), std::to_string(cv_ptr->image.cols));
-    RCLCPP_INFO(get_logger(), std::to_string(depth));
+    // cv_ptr->image.at<double>(0, 357 / 2) = 10.0;
+    // cv_ptr->image.at<double>(113, 0) = 10.0;
+    // cv_ptr->image.at<double>(479, 319) = 10.0;
 
-    // Warum ist depth value z=2.247117487993712e+307?
-    // Nochmal ausprobieren in python tiefenwerte auszulesen
+    if (!set_depth_if_not_nan_(cv_ptr, depth_pixel_row, depth_pixel_col, depth))
+    {
+        for (int i = 1; i < max_pixel_range_for_depth_matching_; i++)
+        {
+            for (int j = 0; j < i + 1; j++)
+            {
+                //left row
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col + j, depth))
+                {
+                    break;
+                }
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col - j, depth))
+                {
+                    break;
+                }
 
-    return depth;
+                //right row
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col + j, depth))
+                {
+                    break;
+                }
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col - j, depth))
+                {
+                    break;
+                }
+
+                //bottom row
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col - i, depth))
+                {
+                    break;
+                }
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col - i, depth))
+                {
+                    break;
+                }
+
+                //top row
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col + i, depth))
+                {
+                    break;
+                }
+                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col + i, depth))
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    RCLCPP_INFO(get_logger(), "depth[m]: " + std::to_string(depth / 100));
+
+    // cv::imshow("Display window", cv_ptr->image);
+    // cv::waitKey(0);
+
+    return depth / 100.0; //convert cm in m
+}
+
+bool PointTransformationNode::set_depth_if_not_nan_(cv_bridge::CvImagePtr &cv_ptr, int row, int col, double &depth)
+{
+    if (cv_ptr->image.at<double>(row, col) != 0.0)
+    {
+        depth = cv_ptr->image.at<double>(row, col);
+        cv_ptr->image.at<double>(row, col) = 1.0;
+        return true;
+    }
+    else
+    {
+        // RCLCPP_INFO(get_logger(), std::to_string(row) + ", " + std::to_string(col));
+        // cv_ptr->image.at<double>(row, col) = 10.0;
+        return false;
+    }
 }
 
 int main(int argc, char *argv[])
