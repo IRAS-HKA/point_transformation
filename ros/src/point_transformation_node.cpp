@@ -37,8 +37,12 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
             // If no depth image given, use default from param file
             if (!request->depth_image.data.empty())
             {
-
                 depth = get_depth_from_image_(request);
+
+                if (depth == 0)
+                {
+                    response->depth_found = false;
+                }
             }
 
             std::vector<double> point = t.pixel_to_point(std::vector<int>{(int)request->pixel.x, (int)request->pixel.y}, depth);
@@ -58,16 +62,16 @@ double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<Pixe
     // x from openpose is from top left to the right = cv/column cv(row, col)
     // y from openpose is from top left downwards = cv/row cv(row, col)
 
-    // MAXIMALE VERWIRRUNG:
-    // topleft corner (0,0)
-    // bottom rigth corner (479,319)
-    // zusammengehördende Pixelreihen 1x640 werden halbiert und stehen untereinander 2x320
+    // datatype für roboception is "float", for realsense is "u_int16_t"
+    camera_type_ = request->camera_type;
 
     double x_ratio = (double)request->depth_image.width / request->width;
     double y_ratio = (double)request->depth_image.height / request->height;
 
     int depth_pixel_row = std::round(request->pixel.y * y_ratio);
-    int depth_pixel_col = std::round(request->pixel.x * x_ratio) / 2;
+    int depth_pixel_col = std::round(request->pixel.x * x_ratio);
+
+    // RCLCPP_INFO(get_logger(), std::to_string(x_ratio) + " " + std::to_string(y_ratio) + " " + std::to_string(depth_pixel_row) + " " + std::to_string(depth_pixel_col) + " " + std::to_string(request->depth_image.width) + " " + std::to_string(request->depth_image.height));
 
     double depth = 0.0;
 
@@ -75,11 +79,28 @@ double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<Pixe
 
     cv_ptr = cv_bridge::toCvCopy(request->depth_image, request->depth_image.encoding);
 
-    cv::patchNaNs(cv_ptr->image, 0.0);
+    // cv::Mat image_32f;
+    // cv_ptr->image.convertTo(image_32f, CV_32F);
+    // cv_ptr->image = image_32f;
 
-    // cv_ptr->image.at<double>(0, 357 / 2) = 10.0;
-    // cv_ptr->image.at<double>(113, 0) = 10.0;
-    // cv_ptr->image.at<double>(479, 319) = 10.0;
+    // for (int i = 1; i < 480; i++)
+    // {
+    //     RCLCPP_INFO(get_logger(), std::to_string(cv_ptr->image.at<float>(i, i)));
+    //     cv_ptr->image.at<float>(i, i) = 20;
+    // }
+
+    // cv_ptr->image.at<u_int32_t>(0, 0) = 100;
+    // cv::imshow("Display window", cv_ptr->image);
+    // cv::waitKey(0);
+
+    if (camera_type_ == "roboception")
+    {
+        cv::patchNaNs(cv_ptr->image, 0.0);
+    }
+
+    // cv_ptr->image.at<float>(depth_pixel_row, depth_pixel_col + 1) = 20;
+    // cv_ptr->image.at<float>(depth_pixel_row, 0) = 20;
+    // cv_ptr->image.at<float>(0, depth_pixel_col) = 20;
 
     if (!set_depth_if_not_nan_(cv_ptr, depth_pixel_row, depth_pixel_col, depth))
     {
@@ -90,68 +111,90 @@ double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<Pixe
                 //left row
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col + j, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col - j, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
 
                 //right row
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col + j, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col - j, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
 
                 //bottom row
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col - i, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col - i, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
 
                 //top row
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col + i, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
                 if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col + i, depth))
                 {
-                    break;
+                    goto break_loops;
                 }
             }
         }
+        RCLCPP_INFO(get_logger(), "found no valid depth pixel in range");
     }
 
-    RCLCPP_INFO(get_logger(), "depth[m]: " + std::to_string(depth / 100));
+break_loops:
+
+    if (camera_type_ == "roboception")
+    {
+        depth = depth; //float already in m
+    }
+    else // if (camera_type_ == "realsense")
+    {
+        depth = depth / 1000; //convert mm in m
+    }
+
+    RCLCPP_INFO(get_logger(), "depth[m]: " + std::to_string(depth));
 
     // cv::imshow("Display window", cv_ptr->image);
-    // cv::waitKey(0);
+    // cv::waitKey(100);
 
-    return depth / 100.0; //convert cm in m
+    return depth;
 }
 
 bool PointTransformationNode::set_depth_if_not_nan_(cv_bridge::CvImagePtr &cv_ptr, int row, int col, double &depth)
 {
-    if (cv_ptr->image.at<double>(row, col) != 0.0)
+    if (camera_type_ == "roboception")
     {
-        depth = cv_ptr->image.at<double>(row, col);
-        cv_ptr->image.at<double>(row, col) = 1.0;
-        return true;
+        if (cv_ptr->image.at<float>(row, col) >= 0.001)
+        {
+            depth = cv_ptr->image.at<float>(row, col);
+            // cv_ptr->image.at<float>(row, col) = 60000.0;
+            return true;
+        }
     }
-    else
+    else //if (camera_type_ == "realsense")
     {
-        // RCLCPP_INFO(get_logger(), std::to_string(row) + ", " + std::to_string(col));
-        // cv_ptr->image.at<double>(row, col) = 10.0;
-        return false;
+        if (cv_ptr->image.at<u_int16_t>(row, col) != 0.0)
+        {
+            depth = cv_ptr->image.at<u_int16_t>(row, col);
+            // cv_ptr->image.at<u_int16_t>(row, col) = 60000.0;
+            return true;
+        }
     }
+
+    // RCLCPP_INFO(get_logger(), std::to_string(row) + " " + std::to_string(col));
+    // cv_ptr->image.at<float>(row, col) = 0.0001;
+    return false;
 }
 
 int main(int argc, char *argv[])
