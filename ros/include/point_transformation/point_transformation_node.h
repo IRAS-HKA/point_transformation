@@ -35,6 +35,7 @@ private:
     int height_;
     double default_depth_;
     int max_pixel_range_for_depth_matching_;
+    std::string camera_type_;
     double get_depth_from_image_(const std::shared_ptr<PixelToPoint::Request> request);
     bool set_depth_if_not_nan_(cv_bridge::CvImagePtr &cv_ptr, int x, int y, double &depth);
 };
