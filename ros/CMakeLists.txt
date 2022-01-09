@@ -21,7 +21,6 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
-find_package(ros_core REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -32,7 +31,6 @@ add_subdirectory (../lib lib)
 
 include_directories(
   include
-  ${ros_core_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
 )
 
@@ -51,7 +49,6 @@ target_include_directories(point_transformation_node
 
 ament_target_dependencies(point_transformation_node
   "rclcpp"
-  "ros_core"
   "cv_bridge"
 )
 
@@ -60,7 +57,6 @@ rosidl_target_interfaces(point_transformation_node
   
 target_link_libraries(point_transformation_node
   point_transformation_lib
-  ros_core::ros_core_lib
   ${OpenCV_LIBS}
 )
   
