@@ -4,7 +4,7 @@ ROS2 Node for 2D / 3D Point Transformation
 
 ## Interface:
 
-### Node
+### Point Transformation Node
 
 - `point_transformation_node` (ROS2 Dashing in C++)
 
@@ -27,6 +27,8 @@ ROS2 Node for 2D / 3D Point Transformation
 
 #### Parameter
 
+Change in `ros/config/params.yaml`
+
 ```bash
 opening_angle_horizontal: 61.0  # Horizontal opening angle of the used Camera (Roboception) in degrees
 opening_angle_vertical: 48.0    # Vertical opening angle in degrees
@@ -44,9 +46,9 @@ max_pixel_range_for_depth_matching: 5 # Search in a NxN area around the correct 
 
 - `point_transformation.launch.py`
 
-    Launch node with loaded parameters
+    Launch node and load configured parameters
 
 
-### Testing
+## Testing
 
     ros2 run point_transformation client.py
