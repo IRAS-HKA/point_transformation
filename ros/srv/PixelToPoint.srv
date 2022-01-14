@@ -2,5 +2,7 @@ geometry_msgs/Point pixel           # pixel in rgb image
 uint32 height 0                     # rgb image height, default if unassigned = 0
 uint32 width 0                      # rgb image width, default if unassigned = 0
 sensor_msgs/Image depth_image       # corresponding depth image
+string camera_type                  # used camera for depth image ("roboception" or "realsense")
 ---
 geometry_msgs/Point point
+bool depth_found true               # Set to False if no depth found in pixel range

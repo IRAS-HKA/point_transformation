@@ -18,7 +18,6 @@
 
   <depend>rclpy</depend>
   <depend>rclcpp</depend>
-  <depend>ros_core</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
 

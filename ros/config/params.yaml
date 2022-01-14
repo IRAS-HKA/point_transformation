@@ -6,3 +6,4 @@ point_transformation_node:
     width: 1920                     # Default width if no image width is given to the service
     height: 1080                    # Default height
     default_depth: 1.0              # Default depth in m if no depth image is given
+    max_pixel_range_for_depth_matching: 5 # Search in a NxN area around the correct pixel if it is nan

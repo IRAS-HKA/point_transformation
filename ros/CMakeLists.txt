@@ -21,16 +21,17 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
-find_package(ros_core REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
 add_subdirectory (../lib lib)
 
 include_directories(
   include
-  ${ros_core_INCLUDE_DIR}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -48,7 +49,7 @@ target_include_directories(point_transformation_node
 
 ament_target_dependencies(point_transformation_node
   "rclcpp"
-  "ros_core"
+  "cv_bridge"
 )
 
 rosidl_target_interfaces(point_transformation_node
@@ -56,7 +57,7 @@ rosidl_target_interfaces(point_transformation_node
   
 target_link_libraries(point_transformation_node
   point_transformation_lib
-  ros_core::ros_core_lib
+  ${OpenCV_LIBS}
 )
   
 install(TARGETS 
@@ -68,6 +69,7 @@ ament_python_install_package(/${PROJECT_NAME})
 
 install(PROGRAMS
   ${PROJECT_NAME}/client.py
+  ${PROJECT_NAME}/depth_image_sub.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
