@@ -32,48 +32,55 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
 
             t.init(std::vector<double>{opening_angle_horizontal_ * focal_factor_, opening_angle_vertical_ * focal_factor_}, width_, height_);
 
-            double depth = default_depth_;
-
+            std::vector<double> depth_list;
             // If no depth image given, use default from param file
             if (!request->depth_image.data.empty())
             {
-                depth = get_depth_from_image_(request);
-
-                if (depth == 0)
+                depth_list = get_depth_from_image_(request);
+            }
+            else
+            {
+                for (size_t i = 0; i < request->pixels.size(); i++)
                 {
-                    response->depth_found = false;
+                    depth_list.push_back(default_depth_);
                 }
             }
 
-            std::vector<double> point = t.pixel_to_point(std::vector<int>{(int)request->pixel.x, (int)request->pixel.y}, depth);
+            for (size_t i = 0; i < depth_list.size(); i++)
+            {
 
-            response->point.x = point[0];
-            response->point.y = point[1];
-            response->point.z = point[2];
+                if (depth_list[i] == 0)
+                {
+                    geometry_msgs::msg::Point point_msg;
+                    response->points.push_back(point_msg);
+                }
+                else
+                {
+                    std::vector<double> point = t.pixel_to_point(std::vector<int>{(int)request->pixels[i].x, (int)request->pixels[i].y}, depth_list[i]);
 
+                    geometry_msgs::msg::Point point_msg;
+                    point_msg.x = point[0];
+                    point_msg.y = point[1];
+                    point_msg.z = point[2];
+                    response->points.push_back(point_msg);
+                }
+            }
             RCLCPP_INFO(get_logger(), "Service sending back response...");
         });
 
     RCLCPP_INFO(get_logger(), "Node started");
 }
 
-double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<PixelToPoint::Request> request)
+std::vector<double> PointTransformationNode::get_depth_from_image_(const std::shared_ptr<PixelToPoint::Request> request)
 {
     // x from openpose is from top left to the right = cv/column cv(row, col)
     // y from openpose is from top left downwards = cv/row cv(row, col)
 
-    // datatype für roboception is "float", for realsense is "u_int16_t"
+    // datatype for roboception is "float", for realsense is "u_int16_t"
     camera_type_ = request->camera_type;
 
     double x_ratio = (double)request->depth_image.width / request->width;
     double y_ratio = (double)request->depth_image.height / request->height;
-
-    int depth_pixel_row = std::round(request->pixel.y * y_ratio);
-    int depth_pixel_col = std::round(request->pixel.x * x_ratio);
-
-    // RCLCPP_INFO(get_logger(), std::to_string(x_ratio) + " " + std::to_string(y_ratio) + " " + std::to_string(depth_pixel_row) + " " + std::to_string(depth_pixel_col) + " " + std::to_string(request->depth_image.width) + " " + std::to_string(request->depth_image.height));
-
-    double depth = 0.0;
 
     cv_bridge::CvImagePtr cv_ptr;
 
@@ -82,6 +89,8 @@ double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<Pixe
     // cv::Mat image_32f;
     // cv_ptr->image.convertTo(image_32f, CV_32F);
     // cv_ptr->image = image_32f;
+
+    // RCLCPP_INFO(get_logger(), std::to_string(x_ratio) + " " + std::to_string(y_ratio) + " " + std::to_string(depth_pixel_row) + " " + std::to_string(depth_pixel_col) + " " + std::to_string(request->depth_image.width) + " " + std::to_string(request->depth_image.height));
 
     // for (int i = 1; i < 480; i++)
     // {
@@ -98,77 +107,87 @@ double PointTransformationNode::get_depth_from_image_(const std::shared_ptr<Pixe
         cv::patchNaNs(cv_ptr->image, 0.0);
     }
 
-    // cv_ptr->image.at<float>(depth_pixel_row, depth_pixel_col + 1) = 20;
-    // cv_ptr->image.at<float>(depth_pixel_row, 0) = 20;
-    // cv_ptr->image.at<float>(0, depth_pixel_col) = 20;
+    std::vector<double> depth_list;
 
-    if (!set_depth_if_not_nan_(cv_ptr, depth_pixel_row, depth_pixel_col, depth))
+    for (size_t i = 0; i < request->pixels.size(); i++)
     {
-        for (int i = 1; i < max_pixel_range_for_depth_matching_; i++)
+        double depth = 0.0;
+
+        int depth_pixel_row = std::round(request->pixels[i].y * y_ratio);
+        int depth_pixel_col = std::round(request->pixels[i].x * x_ratio);
+
+        // cv_ptr->image.at<float>(depth_pixel_row, depth_pixel_col + 1) = 20;
+        // cv_ptr->image.at<float>(depth_pixel_row, 0) = 20;
+        // cv_ptr->image.at<float>(0, depth_pixel_col) = 20;
+
+        if (!set_depth_if_not_nan_(cv_ptr, depth_pixel_row, depth_pixel_col, depth))
         {
-            for (int j = 0; j < i + 1; j++)
+            for (int i = 1; i < max_pixel_range_for_depth_matching_; i++)
             {
-                //left row
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col + j, depth))
+                for (int j = 0; j < i + 1; j++)
                 {
-                    goto break_loops;
-                }
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col - j, depth))
-                {
-                    goto break_loops;
-                }
+                    //left row
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col + j, depth))
+                    {
+                        goto break_loops;
+                    }
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col - j, depth))
+                    {
+                        goto break_loops;
+                    }
 
-                //right row
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col + j, depth))
-                {
-                    goto break_loops;
-                }
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col - j, depth))
-                {
-                    goto break_loops;
-                }
+                    //right row
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col + j, depth))
+                    {
+                        goto break_loops;
+                    }
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col - j, depth))
+                    {
+                        goto break_loops;
+                    }
 
-                //bottom row
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col - i, depth))
-                {
-                    goto break_loops;
-                }
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col - i, depth))
-                {
-                    goto break_loops;
-                }
+                    //bottom row
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col - i, depth))
+                    {
+                        goto break_loops;
+                    }
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col - i, depth))
+                    {
+                        goto break_loops;
+                    }
 
-                //top row
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col + i, depth))
-                {
-                    goto break_loops;
-                }
-                if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col + i, depth))
-                {
-                    goto break_loops;
+                    //top row
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col + i, depth))
+                    {
+                        goto break_loops;
+                    }
+                    if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + j, depth_pixel_col + i, depth))
+                    {
+                        goto break_loops;
+                    }
                 }
             }
+            RCLCPP_INFO(get_logger(), "found no valid depth pixel in range");
         }
-        RCLCPP_INFO(get_logger(), "found no valid depth pixel in range");
+
+    break_loops:
+
+        if (camera_type_ == "roboception")
+        {
+            depth_list.push_back(depth); //float already in m
+        }
+        else // if (camera_type_ == "realsense")
+        {
+            depth_list.push_back(depth / 1000); //convert mm in m
+        }
+
+        // RCLCPP_INFO(get_logger(), "depth[m]: " + std::to_string(depth));
+
+        // cv::imshow("Display window", cv_ptr->image);
+        // cv::waitKey(100);
     }
 
-break_loops:
-
-    if (camera_type_ == "roboception")
-    {
-        depth = depth; //float already in m
-    }
-    else // if (camera_type_ == "realsense")
-    {
-        depth = depth / 1000; //convert mm in m
-    }
-
-    RCLCPP_INFO(get_logger(), "depth[m]: " + std::to_string(depth));
-
-    // cv::imshow("Display window", cv_ptr->image);
-    // cv::waitKey(100);
-
-    return depth;
+    return depth_list;
 }
 
 bool PointTransformationNode::set_depth_if_not_nan_(cv_bridge::CvImagePtr &cv_ptr, int row, int col, double &depth)
@@ -191,9 +210,6 @@ bool PointTransformationNode::set_depth_if_not_nan_(cv_bridge::CvImagePtr &cv_pt
             return true;
         }
     }
-
-    // RCLCPP_INFO(get_logger(), std::to_string(row) + " " + std::to_string(col));
-    // cv_ptr->image.at<float>(row, col) = 0.0001;
     return false;
 }
 
