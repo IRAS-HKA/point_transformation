@@ -54,4 +54,4 @@ max_pixel_range_for_depth_matching: 5 # Search in a NxN area around the correct 
 
 ## Todo:
 
-- [ ] update .svg with correct interface
+- [x] update .svg with correct interface
