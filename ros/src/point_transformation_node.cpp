@@ -2,13 +2,13 @@
 
 PointTransformationNode::PointTransformationNode() : Node("point_transformation_node")
 {
-    this->declare_parameter("opening_angle_horizontal");
-    this->declare_parameter("opening_angle_vertical");
-    this->declare_parameter("focal_factor");
-    this->declare_parameter("width");
-    this->declare_parameter("height");
-    this->declare_parameter("default_depth");
-    this->declare_parameter("max_pixel_range_for_depth_matching");
+    this->declare_parameter("opening_angle_horizontal", 61.0);
+    this->declare_parameter("opening_angle_vertical", 48.0);
+    this->declare_parameter("focal_factor", 0.75);
+    this->declare_parameter("width", 1920);
+    this->declare_parameter("height", 1080);
+    this->declare_parameter("default_depth", 1.0);
+    this->declare_parameter("max_pixel_range_for_depth_matching", 5);
 
     opening_angle_horizontal_ = this->get_parameter("opening_angle_horizontal").as_double();
     opening_angle_vertical_ = this->get_parameter("opening_angle_vertical").as_double();
@@ -65,8 +65,7 @@ PointTransformationNode::PointTransformationNode() : Node("point_transformation_
                     response->points.push_back(point_msg);
                 }
             }
-            RCLCPP_INFO(get_logger(), "Service sending back response...");
-        });
+            RCLCPP_INFO(get_logger(), "Service sending back response..."); });
 
     RCLCPP_INFO(get_logger(), "Node started");
 }
@@ -126,7 +125,7 @@ std::vector<double> PointTransformationNode::get_depth_from_image_(const std::sh
             {
                 for (int j = 0; j < i + 1; j++)
                 {
-                    //left row
+                    // left row
                     if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - i, depth_pixel_col + j, depth))
                     {
                         goto break_loops;
@@ -136,7 +135,7 @@ std::vector<double> PointTransformationNode::get_depth_from_image_(const std::sh
                         goto break_loops;
                     }
 
-                    //right row
+                    // right row
                     if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row + i, depth_pixel_col + j, depth))
                     {
                         goto break_loops;
@@ -146,7 +145,7 @@ std::vector<double> PointTransformationNode::get_depth_from_image_(const std::sh
                         goto break_loops;
                     }
 
-                    //bottom row
+                    // bottom row
                     if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col - i, depth))
                     {
                         goto break_loops;
@@ -156,7 +155,7 @@ std::vector<double> PointTransformationNode::get_depth_from_image_(const std::sh
                         goto break_loops;
                     }
 
-                    //top row
+                    // top row
                     if (set_depth_if_not_nan_(cv_ptr, depth_pixel_row - j, depth_pixel_col + i, depth))
                     {
                         goto break_loops;
@@ -174,11 +173,11 @@ std::vector<double> PointTransformationNode::get_depth_from_image_(const std::sh
 
         if (camera_type_ == "roboception")
         {
-            depth_list.push_back(depth); //float already in m
+            depth_list.push_back(depth); // float already in m
         }
         else // if (camera_type_ == "realsense")
         {
-            depth_list.push_back(depth / 1000); //convert mm in m
+            depth_list.push_back(depth / 1000); // convert mm in m
         }
 
         // RCLCPP_INFO(get_logger(), "depth[m]: " + std::to_string(depth));
@@ -201,7 +200,7 @@ bool PointTransformationNode::set_depth_if_not_nan_(cv_bridge::CvImagePtr &cv_pt
             return true;
         }
     }
-    else //if (camera_type_ == "realsense")
+    else // if (camera_type_ == "realsense")
     {
         if (cv_ptr->image.at<u_int16_t>(row, col) != 0.0)
         {

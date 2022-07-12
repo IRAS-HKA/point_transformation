@@ -16,8 +16,8 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='point_transformation',
-            node_executable='point_transformation_node',
-            node_name='point_transformation_node',
+            executable='point_transformation_node',
+            name='point_transformation_node',
             output='screen',
             parameters=[config],
             prefix=['stdbuf -o L'],
