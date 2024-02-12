@@ -2,6 +2,22 @@
 
 ROS2 Node for 2D / 3D Point Transformation
 
+## How to start:
+
+1. Set the ROS_DOMAIN_ID in `./.env`
+    ```yaml
+    ROS_DOMAIN_ID=66
+    ```
+2. Adapt parameters for specific use case in `ros/config/params.yaml`
+3. (only once) Build the docker container
+    ```bash
+    . build_docker.sh
+    ```
+4. Start the docker container
+    ```bash
+    . start_docker.sh
+    ```
+
 ## Interface:
 
 ### Point Transformation Node
@@ -38,15 +54,8 @@ default_depth: 1.0              # Default depth in m if no depth image is given
 max_pixel_range_for_depth_matching: 5 # Search in a NxN area around the correct pixel if it is nan
 ```
 
-## How to run:
+## How to launch:
     ros2 launch point_transformation point_transformation.launch.py
-
-### Launch files
-
-- `point_transformation.launch.py`
-
-    Launch node and load configured parameters
-
 
 ## Testing:
 

@@ -1,49 +1,61 @@
-# Run build with --build-arg TF_RELEASE="X.X.X-X" for other releases than 2.3.0-gpu
-ARG TF_RELEASE=2.3.0-gpu
-FROM tensorflow/tensorflow:1.13.2$TF_RELEASE
-ARG DEBIAN_FRONTEND=noninteractive
+##############################################################################
+##                                 Base Image                               ##
+##############################################################################
+ARG ROS_DISTRO=humble
+FROM ros:${ROS_DISTRO}-ros-base
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-#### ROS 2 Installation ####
+##############################################################################
+##                                 Global Dependecies                       ##
+##############################################################################
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    ros-$ROS_DISTRO-cv-bridge \
+    python3-pip \
+    python3-colcon-common-extensions \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Run build with --build-arg ROS_DISTRO="X" for other releases than dashing
-ARG ROS_DISTRO=dashing
+RUN python3 -m pip install -U pip
+RUN pip3 install -U \
+    setuptools \
+    opencv-python
 
-# Setup Locale
-RUN sudo locale-gen en_US en_US.UTF-8
-RUN sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-RUN export LANG=en_US.UTF-8
+##############################################################################
+##                                 Create User                              ##
+##############################################################################
+ARG USER=docker
+ARG PASSWORD=docker
+ARG UID=1000
+ARG GID=1000
+ENV UID=${UID}
+ENV GID=${GID}
+ENV USER=${USER}
+RUN groupadd -g "$GID" "$USER"  && \
+    useradd -m -u "$UID" -g "$GID" --shell $(which bash) "$USER" -G sudo && \
+    echo "$USER:$PASSWORD" | chpasswd && \
+    echo "%sudo ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/sudogrp
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /etc/bash.bashrc
 
-# Setup Sources
-RUN sudo apt update && sudo apt install curl gnupg2 lsb-release
-RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+USER $USER 
+RUN mkdir -p /home/$USER/ros2_ws/src
 
-RUN sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
+##############################################################################
+##                                 User Dependecies                         ##
+##############################################################################
+WORKDIR /home/$USER/ros2_ws/src
+COPY . ./point_transformation
 
-# Install ROS 2 packages
-RUN sudo apt update
-RUN sudo apt install ros-$ROS_DISTRO-desktop
+##############################################################################
+##                                 Build ROS and run                        ##
+##############################################################################
+WORKDIR /home/$USER/ros2_ws
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --symlink-install
+RUN echo "source /home/$USER/ros2_ws/install/setup.bash" >> /home/$USER/.bashrc
 
-# Environment setup
-RUN source /opt/ros/crystal/setup.bash
+RUN sudo sed --in-place --expression \
+    '$isource "/home/$USER/ros2_ws/install/setup.bash"' \
+    /ros_entrypoint.sh
 
-# Install argcomplete
-RUN sudo apt install python3-argcomplete
-
-# setup entrypoint
-COPY ros_entrypoint.sh /
-ENTRYPOINT ["/ros_entrypoint.sh"]
-
-############################
-
-WORKDIR /workspace
-
-# set up the ros node
-COPY object_detector_tensorflow ./object_detector_tensorflow
-
-# deploy the default CNN
-COPY data/* /
-
-ENV PYTHONUNBUFFERED 1
-CMD [ "python", "-m", "object_detector_tensorflow" ]
-
-STOPSIGNAL SIGINT
+CMD ["ros2", "launch", "point_transformation", "point_transformation.launch.py"]
+# CMD /bin/bash

@@ -52,12 +52,13 @@ ament_target_dependencies(point_transformation_node
   "cv_bridge"
 )
 
-rosidl_target_interfaces(point_transformation_node
+rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
   
 target_link_libraries(point_transformation_node
   point_transformation_lib
   ${OpenCV_LIBS}
+  ${cpp_typesupport_target}
 )
   
 install(TARGETS 
@@ -65,7 +66,10 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules
-ament_python_install_package(/${PROJECT_NAME})
+# Currently not possible because of error:
+# add_custom_target cannot create target because another target with the same name already exists. The existing target is a custom target created in source directory. See documentation for policy CMP0002 for more details.
+# https://github.com/ros2/rosidl_python/issues/141
+# ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   ${PROJECT_NAME}/client.py
