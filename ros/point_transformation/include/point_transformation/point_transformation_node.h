@@ -16,11 +16,11 @@
 
 #include <opencv2/highgui.hpp>
 
-#include <point_transformation/srv/pixel_to_point.hpp>
+#include <point_transformation_interfaces/srv/pixel_to_point.hpp>
 #include <point_transformation_lib/Transformation.h>
 #include <geometry_msgs/msg/point.hpp>
 
-using PixelToPoint = point_transformation::srv::PixelToPoint;
+using PixelToPoint = point_transformation_interfaces::srv::PixelToPoint;
 
 class PointTransformationNode : public rclcpp::Node
 {

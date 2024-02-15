@@ -21,44 +21,34 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(point_transformation_interfaces REQUIRED)
 
-add_subdirectory (../lib lib)
+add_subdirectory (../../lib lib)
 
 include_directories(
   include
   ${OpenCV_INCLUDE_DIRS}
 )
 
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/PixelToPoint.srv"
-  DEPENDENCIES sensor_msgs geometry_msgs
-)
 
 add_executable(point_transformation_node src/point_transformation_node.cpp)
 target_include_directories(point_transformation_node 
-  PUBLIC 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
   PUBLIC ../lib/include
 )
 
 ament_target_dependencies(point_transformation_node
   "rclcpp"
   "cv_bridge"
+  "point_transformation_interfaces"
 )
-
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
   
 target_link_libraries(point_transformation_node
   point_transformation_lib
   ${OpenCV_LIBS}
-  ${cpp_typesupport_target}
 )
   
 install(TARGETS 
@@ -66,10 +56,7 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules
-# Currently not possible because of error:
-# add_custom_target cannot create target because another target with the same name already exists. The existing target is a custom target created in source directory. See documentation for policy CMP0002 for more details.
-# https://github.com/ros2/rosidl_python/issues/141
-# ament_python_install_package(${PROJECT_NAME})
+ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   ${PROJECT_NAME}/client.py
