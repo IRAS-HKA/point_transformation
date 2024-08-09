@@ -166,7 +166,7 @@ std::vector<double> PointTransformationNode::get_depth_from_image_(const std::sh
                     }
                 }
             }
-            RCLCPP_INFO(get_logger(), "found no valid depth pixel in range");
+            // RCLCPP_INFO(get_logger(), "found no valid depth pixel in range");
         }
 
     break_loops:
